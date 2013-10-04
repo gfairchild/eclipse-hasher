@@ -19,12 +19,12 @@ Eclipse 4+ and Java 1.7 are required. Older versions of Eclipse may work, but th
 eclipse-hasher is available through an Eclipse update site hosted on my personal website.
 
 1. In Eclipse, go to Help -> Install New Software....
-2. Click Add....
-3. Add a repository named "Geoffrey Fairchild's Eclipse plugins" located at "http://www.gfairchild.com/eclipse/".
-4. Check the box next to Hasher and click Next.
-5. Click Next again to review the license, accept the license, and click Finish.
-6. Click OK when presented with the security warning about unsigned content.
-7. Restart Eclipse.
+1. Click Add....
+1. Add a repository named "Geoffrey Fairchild's Eclipse plugins" located at "http://www.gfairchild.com/eclipse/".
+1. Check the box next to Hasher and click Next.
+1. Click Next again to review the license, accept the license, and click Finish.
+1. Click OK when presented with the security warning about unsigned content.
+1. Restart Eclipse.
 
 ## USING THIS PLUGIN
 Simply right-click a file or directory in a relevant view (such as Navigator or Package Explorer). Under the Hasher menu option, the available algorithms will be shown:
