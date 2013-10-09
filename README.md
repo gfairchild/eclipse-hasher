@@ -7,7 +7,7 @@ Geoffrey Fairchild
 * [http://www.linkedin.com/in/gfairchild/](http://www.linkedin.com/in/gfairchild/)
 
 ## LICENSE
-This software is licensed under the [BSD 3-Clause License](http://opensource.org/licenses/BSD-3-Clause). Please refer to the separate LICENSE.txt file for the exact text of the license. You are obligated to give attribution if you use this code.
+This software is licensed under the [BSD 3-Clause License](http://opensource.org/licenses/BSD-3-Clause). Please refer to the separate [LICENSE.txt](LICENSE.txt) file for the exact text of the license. You are obligated to give attribution if you use this code.
 
 ## ABOUT
 eclipse-hasher is an [Eclipse](http://www.eclipse.org/) plugin that generates the MD5, SHA-1, SHA-256, SHA-384, or SHA-512 hash of any selected files. It adds an option on the right click menu of any selected file or directory (e.g., in the Navigator or Package Explorer view) for generating hashes.
