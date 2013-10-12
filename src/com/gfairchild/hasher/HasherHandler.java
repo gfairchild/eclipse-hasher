@@ -57,7 +57,8 @@ public class HasherHandler extends AbstractHandler {
 	@Override
 	public Object execute(ExecutionEvent event) throws ExecutionException {
 		// do the actual work in a separate thread
-		Worker worker = new Worker(event);
+		Worker worker = new Worker(event.getParameter("com.gfairchild.hasher.hash.algorithmname"),
+				HandlerUtil.getCurrentSelection(event));
 		Thread thread = new Thread(worker);
 		thread.start();
 
@@ -69,19 +70,19 @@ public class HasherHandler extends AbstractHandler {
 	 * {@link Runnable} so that it can be run in a separate thread (hash computation could be expensive).
 	 */
 	private class Worker implements Runnable {
-		private ExecutionEvent event;
+		private String algorithmName;
+		private ISelection selection;
 
-		public Worker(ExecutionEvent event) {
-			this.event = event;
+		public Worker(String algorithmName, ISelection selection) {
+			this.algorithmName = algorithmName;
+			this.selection = selection;
 		}
 
 		@Override
 		public void run() {
 			// dynamically create message digest based on parameter provided by command
-			String algorithmName = event.getParameter("com.gfairchild.hasher.hash.algorithmname");
 			MessageDigest messageDigest = DigestUtils.getDigest(algorithmName);
 
-			ISelection selection = HandlerUtil.getCurrentSelection(event);
 			if (selection instanceof IStructuredSelection) {
 				List<?> selectionList = ((IStructuredSelection) selection).toList();
 				Set<IFile> fileSet = new LinkedHashSet<>(); // maintain insertion order
