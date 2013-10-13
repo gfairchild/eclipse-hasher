@@ -19,6 +19,7 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ui.console.ConsolePlugin;
@@ -48,7 +49,7 @@ public class HasherHandler extends AbstractHandler {
 		public int compare(IResource o1, IResource o2) {
 			if (o1.getClass().equals(o2.getClass()))
 				return o1.getName().compareTo(o2.getName());
-			else if (o1 instanceof IFile) // o1 is a file, so o2 is a folder
+			else if (Platform.getAdapterManager().getAdapter(o1, IFile.class) != null) // o1 is a file, so o2 is a folder
 				return -1;
 			return 1;
 		}
@@ -80,20 +81,27 @@ public class HasherHandler extends AbstractHandler {
 
 		@Override
 		public void run() {
-			// dynamically create message digest based on parameter provided by command
-			MessageDigest messageDigest = DigestUtils.getDigest(algorithmName);
+			IStructuredSelection structuredSelection = (IStructuredSelection) Platform.getAdapterManager().getAdapter(
+					selection, IStructuredSelection.class);
+			
+			if (structuredSelection != null) {
+				// dynamically create message digest based on parameter provided by command
+				MessageDigest messageDigest = DigestUtils.getDigest(algorithmName);
 
-			if (selection instanceof IStructuredSelection) {
 				List<?> selectionList = ((IStructuredSelection) selection).toList();
 				Set<IFile> fileSet = new LinkedHashSet<>(); // maintain insertion order
 
 				try {
 					// iterate through each selected item and pull out files
-					for (Object object : selectionList)
-						if (object instanceof IFile)
-							fileSet.add((IFile) object);
-						else if (object instanceof IFolder)
-							fileSet.addAll(getSubFiles((IFolder) object));
+					for (Object object : selectionList) {
+						IFile file = (IFile) Platform.getAdapterManager().getAdapter(object, IFile.class);
+						if (file != null)
+							fileSet.add(file);
+						else {
+							IFolder folder = (IFolder) Platform.getAdapterManager().getAdapter(object, IFolder.class);
+							fileSet.addAll(getSubFiles(folder));
+						}
+					}
 
 					// generate and output hashes
 					messageConsoleStream.println(messageDigest.getAlgorithm());
@@ -127,11 +135,15 @@ public class HasherHandler extends AbstractHandler {
 		sortedMemberSet.addAll((List<IResource>) Arrays.asList(folder.members()));
 
 		// now either add each member to fileSet or recursively go deeper
-		for (IResource resource : sortedMemberSet)
-			if (resource instanceof IFile)
-				fileSet.add((IFile) resource);
-			else if (resource instanceof IFolder)
-				fileSet.addAll(getSubFiles((IFolder) resource));
+		for (IResource resource : sortedMemberSet) {
+			IFile file = (IFile) Platform.getAdapterManager().getAdapter(resource, IFile.class);
+			if (file != null)
+				fileSet.add(file);
+			else {
+				IFolder subFolder = (IFolder) Platform.getAdapterManager().getAdapter(resource, IFolder.class);
+				fileSet.addAll(getSubFiles(subFolder));
+			}
+		}
 
 		return fileSet;
 	}
