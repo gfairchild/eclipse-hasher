@@ -19,7 +19,11 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ui.console.ConsolePlugin;
@@ -49,73 +53,68 @@ public class HasherHandler extends AbstractHandler {
 		public int compare(IResource o1, IResource o2) {
 			if (o1.getClass().equals(o2.getClass()))
 				return o1.getName().compareTo(o2.getName());
-			else if (Platform.getAdapterManager().getAdapter(o1, IFile.class) != null) // o1 is a file, so o2 is a folder
-				return -1;
+			else if (Platform.getAdapterManager().getAdapter(o1, IFile.class) != null)
+				return -1; // o1 is a file, so o2 is a folder
 			return 1;
 		}
 	};
 
 	@Override
 	public Object execute(ExecutionEvent event) throws ExecutionException {
-		// do the actual work in a separate thread
-		Worker worker = new Worker(event.getParameter("com.gfairchild.hasher.hash.algorithmname"),
-				HandlerUtil.getCurrentSelection(event));
-		Thread thread = new Thread(worker);
-		thread.start();
+		final String algorithmName = event.getParameter("com.gfairchild.hasher.hash.algorithmname");
+		final ISelection selection = HandlerUtil.getCurrentSelection(event);
+
+		Job job = new Job("Hasher") {
+			@Override
+			protected IStatus run(IProgressMonitor monitor) {
+				IStructuredSelection structuredSelection = (IStructuredSelection) Platform.getAdapterManager()
+						.getAdapter(selection, IStructuredSelection.class);
+
+				if (structuredSelection != null) {
+					List<?> selectionList = ((IStructuredSelection) selection).toList();
+					Set<IFile> fileSet = new LinkedHashSet<>(); // maintain insertion order
+
+					try {
+						// iterate through each selected item and pull out files
+						for (Object object : selectionList) {
+							IFile file = (IFile) Platform.getAdapterManager().getAdapter(object, IFile.class);
+							if (file != null)
+								fileSet.add(file);
+							else {
+								IFolder folder = (IFolder) Platform.getAdapterManager().getAdapter(object,
+										IFolder.class);
+								fileSet.addAll(getSubFiles(folder));
+							}
+						}
+
+						// dynamically create message digest based on parameter provided by command
+						MessageDigest messageDigest = DigestUtils.getDigest(algorithmName);
+
+						// generate and output hashes
+						messageConsoleStream.println(messageDigest.getAlgorithm());
+						monitor.beginTask("Computing hashes.", fileSet.size());
+						for (IFile file : fileSet) {
+							monitor.subTask(file.getProjectRelativePath().toString());
+							messageConsoleStream.println(file.getProjectRelativePath() + " : "
+									+ getHash(messageDigest, file));
+							monitor.worked(1);
+						}
+						messageConsoleStream.println("----------------------------------------");
+					} catch (IOException e) {
+						messageConsoleStream.println(e.toString());
+					} catch (CoreException e) {
+						messageConsoleStream.println(e.toString());
+					}
+				}
+
+				return Status.OK_STATUS;
+			}
+		};
+
+		// start the job
+		job.schedule();
 
 		return null;
-	}
-
-	/**
-	 * Figure out which files to hash, generate the hashes, and output the results. This class implements
-	 * {@link Runnable} so that it can be run in a separate thread (hash computation could be expensive).
-	 */
-	private class Worker implements Runnable {
-		private String algorithmName;
-		private ISelection selection;
-
-		public Worker(String algorithmName, ISelection selection) {
-			this.algorithmName = algorithmName;
-			this.selection = selection;
-		}
-
-		@Override
-		public void run() {
-			IStructuredSelection structuredSelection = (IStructuredSelection) Platform.getAdapterManager().getAdapter(
-					selection, IStructuredSelection.class);
-			
-			if (structuredSelection != null) {
-				// dynamically create message digest based on parameter provided by command
-				MessageDigest messageDigest = DigestUtils.getDigest(algorithmName);
-
-				List<?> selectionList = ((IStructuredSelection) selection).toList();
-				Set<IFile> fileSet = new LinkedHashSet<>(); // maintain insertion order
-
-				try {
-					// iterate through each selected item and pull out files
-					for (Object object : selectionList) {
-						IFile file = (IFile) Platform.getAdapterManager().getAdapter(object, IFile.class);
-						if (file != null)
-							fileSet.add(file);
-						else {
-							IFolder folder = (IFolder) Platform.getAdapterManager().getAdapter(object, IFolder.class);
-							fileSet.addAll(getSubFiles(folder));
-						}
-					}
-
-					// generate and output hashes
-					messageConsoleStream.println(messageDigest.getAlgorithm());
-					for (IFile file : fileSet)
-						messageConsoleStream.println(file.getProjectRelativePath() + " : "
-								+ getHash(messageDigest, file));
-					messageConsoleStream.println("----------------------------------------");
-				} catch (IOException e) {
-					messageConsoleStream.println(e.toString());
-				} catch (CoreException e) {
-					messageConsoleStream.println(e.toString());
-				}
-			}
-		}
 	}
 
 	/**
